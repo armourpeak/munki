@@ -55,6 +55,14 @@ Usage: $(basename "$0") [-i id] [-r root] [-o dir] [-c package] [-s cert]
     -c plist    Build a configuration package using the preferences defined in a
                 plist file.
     -R          Include a pkg to install Rosetta2 on ARM-based hardware.
+    -u dev_id   Specify the username of a developer account for notarizing Managed Software Center.app. 
+                Do not specify if you don't wish to notarize. Requires -S option to be specified.
+    -P dev_pass Specify an app specific password associated with a developer account for 
+                notarizing Managed Software Center.app (see HT204397). 
+                Specify either the actual app specific password (not recommended)
+                or the pointer to the keychain item. Defaults to "@keychain:AC_PASSWORD" if not specified.
+                https://developer.apple.com/documentation/xcode/notarizing_macos_software_before_distribution/customizing_the_notarization_workflow
+    -t dev_team If developer credentials belong to more than a single team, specify team ID for notarizing
     -s cert_cn  Sign distribution package with a Developer ID Installer
                 certificate from keychain. Provide the certificate's Common
                 Name. Ex: "Developer ID Installer: Munki (U8PN57A5N2)"
@@ -66,7 +74,7 @@ EOF
 }
 
 
-while getopts "i:r:o:n:c:s:S:pBmhR" option
+while getopts "i:r:o:n:c:s:S:u:P:t:pBmhR" option
 do
     case $option in
         "i")
@@ -91,6 +99,15 @@ do
         "S")
             APPSIGNINGCERT="$OPTARG"
             ;;
+        "u")
+        	ASC_USER="$OPTARG"
+        	;;
+		"P")
+			ASC_PASS="$OPTARG"
+			;;
+		"t")
+        	ASC_TEAM="$OPTARG"
+        	;;
         "p")
             BUILDPYTHON=YES
             ;;
@@ -283,6 +300,11 @@ if [ "$PKGSIGNINGCERT" != "" ] ; then
     echo "  Sign package with keychain cert: $PKGSIGNINGCERT"
 else
     echo "  Sign package: NO"
+fi
+if [ "$ASC_USER" != "" ] ; then
+	echo "  Notarize Managed Software Center: YES"
+else
+	echo "  Notarize Managed Software Center: NO"
 fi
 echo
 
@@ -511,6 +533,52 @@ if [ "$APPSIGNINGCERT" != "" ]; then
         echo "Error signing Managed Software Center.app: $SIGNING_RESULT"
         exit 2
     fi
+fi
+
+# notarize MSC app
+if [ "$ASC_USER" != "" ] && [ "$APPSIGNINGCERT" != "" ] ; then
+	ASC_BUNDLEID="$PKGID.msc"
+	if [ "$ASC_PASS" == "" ] ; then
+		ASC_PASS="@keychain:AC_PASSWORD"
+	fi
+	echo "Compressing built Managed Software Center.app for notarization submission..."
+	# Compress app to submit to Apple notary
+	ZIP_PATH="/private/tmp/Managed Software Center.app.zip"
+	/usr/bin/ditto -c -k --keepParent "$APPROOT/Applications/Managed Software Center.app" "$ZIP_PATH"
+	# Submit notarization request
+	echo "Submitting Managed Software Center.app to Apple for notarization, this typically takes under 5 minutes, but can take a little longer (we'll keep you updated)..."
+	RequestUUID=$(xcrun altool --notarize-app --primary-bundle-id "$ASC_BUNDLEID" --username "$ASC_USER" --password "$ASC_PASS" --asc-provider "$ASC_TEAM" --file "$ZIP_PATH" | awk '/RequestUUID/{print $NF}')
+	XCRUN_RESULT="$?"
+	if [ "$XCRUN_RESULT" -ne 0 ]; then
+		echo "Error submitting Managed Software Center.app for notarization: $XCODEBUILD_RESULT"
+		exit 2
+	fi
+	echo "Notarization RequestUUID: $RequestUUID"
+	STATUS="in progress"
+	i=0
+	while [ "$STATUS" == "in progress" ]
+	do
+		STATUS=$(/usr/bin/xcrun altool --notarization-info "$RequestUUID" -u "$ASC_USER" -p "$ASC_PASS" | awk -F": " '/Status:/{print $NF;exit;}')
+		if [ "$STATUS" == "invalid" ]; then
+			echo "$(/usr/bin/xcrun altool --notarization-info "$RequestUUID" -u "$ASC_USER" -p "ASC_$PASS" | awk '/Status Message:/{print}')"
+			echo "Notarization was not succesful. Review the notarization log with Xcode or altool. Exiting $0"
+			exit 1
+		fi
+		if [ "$STATUS" == "success" ]; then
+				echo "$(/usr/bin/xcrun altool --notarization-info "$RequestUUID" -u "$ASC_USER" -p "$ASC_PASS" | awk '/Status Message:/{print}')"
+				echo "Stapling offline notarization ticket to Managed Software Center.app..."
+				/usr/bin/xcrun stapler staple "$APPROOT/Applications/Managed Software Center.app"
+				break
+		fi
+		echo "Notarization in progress. Elapsed time approximately $i seconds (limit: 1800)..."
+		i=$[$i+5]
+		sleep 4
+		if [ $i -ge "1800" ]; then
+			echo "Notarization pending for 30 minutes, exiting."
+			exit 1800
+		fi
+	done
+	rm -rf "$ZIP_PATH"
 fi
 
 # copy in app cleanup scripts
