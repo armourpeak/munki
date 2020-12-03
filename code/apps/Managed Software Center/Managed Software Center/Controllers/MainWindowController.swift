@@ -20,10 +20,11 @@ class MainWindowController: NSWindowController, NSWindowDelegate, WKNavigationDe
     var htmlDir = ""
     var wkContentController = WKUserContentController()
     
-    let items = [["title": "Software", "icon": "AllItemsTemplate"],
-                 ["title": "Categories", "icon": "toolbarCategoriesTemplate"],
-                 ["title": "My Items", "icon": "MyStuffTemplate"],
-                 ["title": "Updates", "icon": "updatesTemplate"]]
+//    let items = [["title": "Software", "icon": "AllItemsTemplate"],
+//                 ["title": "Categories", "icon": "toolbarCategoriesTemplate"],
+//                 ["title": "My Items", "icon": "MyStuffTemplate"],
+//                 ["title": "Updates", "icon": "updatesTemplate"]]
+    let items = [["title": "Updates", "icon": "updatesTemplate"]]
     
     // status properties
     var _status_title = ""
@@ -62,13 +63,13 @@ class MainWindowController: NSWindowController, NSWindowDelegate, WKNavigationDe
         if 0 ... items.count ~= sidebar.clickedRow {
             clearSearchField()
             switch sidebar.clickedRow {
+//                case 0:
+//                    loadAllSoftwarePage(self)
+//                case 1:
+//                    loadCategoriesPage(self)
+//                case 2:
+//                    loadMyItemsPage(self)
                 case 0:
-                    loadAllSoftwarePage(self)
-                case 1:
-                    loadCategoriesPage(self)
-                case 2:
-                    loadMyItemsPage(self)
-                case 3:
                     loadUpdatesPage(self)
                 default:
                     loadUpdatesPage(self)
@@ -116,7 +117,8 @@ class MainWindowController: NSWindowController, NSWindowDelegate, WKNavigationDe
     
     func currentPageIsUpdatesPage() -> Bool {
         // return true if current tab selected is Updates
-        return sidebar.selectedRow == 3
+       // return sidebar.selectedRow == 3
+        return sidebar.selectedRow == 0
     }
 
     func newTranslucentWindow(screen: NSScreen) -> NSWindow {
@@ -769,7 +771,10 @@ class MainWindowController: NSWindowController, NSWindowDelegate, WKNavigationDe
         let updateCount = getUpdateCount()
         
         var cellView:MSCTableCellView?
-        if let view = self.sidebar.rowView(atRow: 3, makeIfNecessary: false) {
+//        if let view = self.sidebar.rowView(atRow: 3, makeIfNecessary: false) {
+//            cellView = view.view(atColumn: 0) as? MSCTableCellView
+//        }
+        if let view = self.sidebar.rowView(atRow: 0, makeIfNecessary: false) {
             cellView = view.view(atColumn: 0) as? MSCTableCellView
         }
 
