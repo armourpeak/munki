@@ -94,9 +94,9 @@ DEFAULT_CATALOG_URLS = {
     '10.16': ('https://swscan.apple.com/content/catalogs/others/'
               'index-10.16-10.15-10.14-10.13-10.12-10.11-10.10-10.9-'
               'mountainlion-lion-snowleopard-leopard.merged-1.sucatalog'),
-    '11.0': ('https://swscan.apple.com/content/catalogs/others/'
-             'index-10.16-10.15-10.14-10.13-10.12-10.11-10.10-10.9-'
-             'mountainlion-lion-snowleopard-leopard.merged-1.sucatalog'),
+    '11': ('https://swscan.apple.com/content/catalogs/others/'
+           'index-11-10.15-10.14-10.13-10.12-10.11-10.10-10.9-'
+           'mountainlion-lion-snowleopard-leopard.merged-1.sucatalog'),
 }
 
 # Preference domain for Apple Software Update.
@@ -218,7 +218,7 @@ class AppleUpdateSync(object):
             return catalog_url
 
         raise CatalogNotFoundError(
-            'No default Software Update CatalogURL for: %s' % os_version)
+            'No default Software Update CatalogURL for macOS %s' % os_version)
 
     def copy_downloaded_catalog(self, _open=open):
         """Copy the downloaded catalog to a new file, extracting if gzipped.
